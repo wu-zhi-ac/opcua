@@ -15,6 +15,7 @@ import java.util.function.Predicate;
 
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfig;
+import org.eclipse.milo.opcua.sdk.client.api.identity.AnonymousProvider;
 import org.eclipse.milo.opcua.sdk.client.api.identity.UsernameProvider;
 import org.eclipse.milo.opcua.stack.client.DiscoveryClient;
 import org.eclipse.milo.opcua.stack.core.Stack;
@@ -112,16 +113,20 @@ public class ClientRunner {
 			endpoints = DiscoveryClient.getEndpoints(discoveryUrl).get();
 		}
 
-		EndpointDescription endpoint = endpoints.stream()
-				.filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getUri())).filter(endpointFilter())
-				.findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+//		System.out.println(endpoints);
+
+//		EndpointDescription endpoint = endpoints.stream()
+//				.filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.Basic256Sha256.getUri())).filter(endpointFilter())
+//				.findFirst().orElseThrow(() -> new Exception("no desired endpoints returned"));
+		EndpointDescription endpoint = endpoints.get(0);
 
 		OpcUaClientConfig config = OpcUaClientConfig.builder()
 				.setApplicationName(LocalizedText.english("jlOpcUaClient"))
 				.setApplicationUri("urn:Jellyleo:UnifiedAutomation:UaExpert@Jellyleo")
 				.setCertificate(loader.getClientCertificate()).setKeyPair(loader.getClientKeyPair())
-				.setEndpoint(endpoint).setIdentityProvider(new UsernameProvider("jellyleo", "123456"))
-//				.setIdentityProvider(new AnonymousProvider()) // 匿名验证
+//				.setEndpoint(endpoint).setIdentityProvider(new UsernameProvider("jellyleo", "123456"))
+//				.setEndpoint(endpoint).setIdentityProvider(new UsernameProvider("ua_user", "userforUAclient"))
+				.setEndpoint(endpoint).setIdentityProvider(new AnonymousProvider()) // 匿名验证
 				.setRequestTimeout(Unsigned.uint(5000)).build();
 
 		return OpcUaClient.create(config);

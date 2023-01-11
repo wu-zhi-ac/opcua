@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,15 +37,12 @@ public class CommonController {
 	/**
 	 * @MethodName: connect
 	 * @Description: opcua连接并订阅变量
-	 * @param request
-	 * @param response
 	 * @return
 	 * @CreateTime 2019年12月16日 上午10:52:39
 	 */
 	@RequestMapping("/connect")
 	@ResponseBody
 	public String connect() {
-
 		try {
 			return clientHandler.connect();
 		} catch (Exception e) {
@@ -83,7 +81,8 @@ public class CommonController {
 
 		try {
 			List<NodeEntity> nodes = Stream.of(request.getParameter("id").split(","))
-					.map(id -> NodeEntity.builder().index(2).identifier(id).build()).collect(Collectors.toList());
+					.map(id -> NodeEntity.builder().index(Integer.valueOf(request.getParameter("index")))
+							.identifier(id).build()).collect(Collectors.toList());
 
 			return clientHandler.subscribe(nodes);
 		} catch (Exception e) {
@@ -103,7 +102,8 @@ public class CommonController {
 	@ResponseBody
 	public String write(HttpServletRequest request) {
 
-		NodeEntity node = NodeEntity.builder().index(2).identifier(request.getParameter("id"))
+		NodeEntity node = NodeEntity.builder().index(Integer.valueOf(request.getParameter("index")))
+				.identifier(request.getParameter("id"))
 				.value(request.getParameter("value")).type(request.getParameter("type")).build();
 
 		try {
@@ -125,10 +125,96 @@ public class CommonController {
 	@ResponseBody
 	public String read(HttpServletRequest request) {
 
-		NodeEntity node = NodeEntity.builder().index(2).identifier(request.getParameter("id")).build();
+		NodeEntity node = NodeEntity.builder().index(Integer.valueOf(request.getParameter("index")))
+				.identifier(request.getParameter("id")).build();
 
 		try {
 			return clientHandler.read(node);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "fail";
+		}
+	}
+
+	@RequestMapping("/reads")
+	@ResponseBody
+	public String reads(HttpServletRequest request) {
+
+		List<NodeEntity> nodes = Stream.of(request.getParameter("id").split(","))
+				.map(id -> NodeEntity.builder().index(Integer.valueOf(request.getParameter("index")))
+						.identifier(id).build()).collect(Collectors.toList());
+
+		try {
+			return clientHandler.reads(nodes);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "fail";
+		}
+	}
+
+	@RequestMapping("/browse")
+	@ResponseBody
+	public String browse(HttpServletRequest request) {
+		NodeId nodeId = null;
+		String id = request.getParameter("id");
+
+		if (id != null) {
+			if (clientHandler.isNumeric(id)) {
+				nodeId = new NodeId(Integer.parseInt(request.getParameter("index")), Integer.parseInt(id));
+			} else {
+				nodeId = new NodeId(Integer.parseInt(request.getParameter("index")), id);
+			}
+		}
+
+		try {
+			clientHandler.browse(nodeId, 0);
+			return "success";
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "fail";
+		}
+	}
+
+	@RequestMapping("/browseForRead")
+	@ResponseBody
+	public String browseForRead(HttpServletRequest request) {
+		NodeId nodeId = null;
+		String id = request.getParameter("id");
+
+		if (id != null) {
+			if (clientHandler.isNumeric(id)) {
+				nodeId = new NodeId(Integer.parseInt(request.getParameter("index")), Integer.parseInt(id));
+			} else {
+				nodeId = new NodeId(Integer.parseInt(request.getParameter("index")), id);
+			}
+		}
+
+		try {
+			clientHandler.browseForRead(nodeId);
+			return "success";
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "fail";
+		}
+	}
+
+	@RequestMapping("/browseAndRead")
+	@ResponseBody
+	public String browseAndRead(HttpServletRequest request) {
+		NodeId nodeId = null;
+		String id = request.getParameter("id");
+
+		if (id != null) {
+			if (clientHandler.isNumeric(id)) {
+				nodeId = new NodeId(Integer.parseInt(request.getParameter("index")), Integer.parseInt(id));
+			} else {
+				nodeId = new NodeId(Integer.parseInt(request.getParameter("index")), id);
+			}
+		}
+
+		try {
+			clientHandler.browseAndRead(nodeId);
+			return "success";
 		} catch (Exception e) {
 			e.printStackTrace();
 			return "fail";
