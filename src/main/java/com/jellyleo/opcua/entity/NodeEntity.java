@@ -26,5 +26,4 @@ public class NodeEntity {
 	private String identifier;
 	private Object value;
 	private String type;
-	private Integer clientHandle;
 }

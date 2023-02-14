@@ -9,7 +9,9 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import com.alibaba.fastjson.JSON;
 import com.jellyleo.opcua.entity.VSEEntity;
+import com.jellyleo.opcua.util.KafkaUtils;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.nodes.Node;
 import org.eclipse.milo.opcua.sdk.client.api.nodes.VariableNode;
@@ -105,6 +107,15 @@ public class ClientHandler {
 		if (client == null) {
 			return "找不到客户端，操作失败";
 		}
+
+//		if (client == null) {
+//			try {
+//				connect();
+//			} catch (Exception e) {
+//				log.error("connect opc server error");
+//				return "error";
+//			}
+//		}
 
 //		List<Node> ns = client.getAddressSpace().browse(new NodeId(2, "模拟通道一.模拟设备一")).get();
 
@@ -220,7 +231,7 @@ public class ClientHandler {
 		switch (node.getType()) {
 		case "int":
 //			value = new Variant(Integer.parseInt(node.getValue().toString()));
-			value = new Variant(Unsigned.ushort(Integer.parseInt(node.getValue().toString())));
+			value = new Variant(Unsigned.ushort(node.getValue().toString()));
 			break;
 		case "boolean":
 			value = new Variant(Boolean.parseBoolean(node.getValue().toString()));
@@ -242,6 +253,53 @@ public class ClientHandler {
 		StatusCode statusCode = client.writeValue(nodeId, dataValue).get();
 
 		return "节点【" + node.getIdentifier() + "】写入状态：" + statusCode.isGood();
+	}
+
+	public String writes(List<NodeEntity> nodes) throws Exception {
+
+		if (client == null) {
+			return "找不到客户端，操作失败";
+		}
+
+		List<NodeId> nodeIds = new ArrayList<>();
+		List<DataValue> dataValues = new ArrayList<>();
+
+		for(NodeEntity node : nodes) {
+			if (isNumeric(node.getIdentifier())) {
+				nodeIds.add(new NodeId(node.getIndex(), Integer.parseInt(node.getIdentifier())));
+			} else {
+				nodeIds.add(new NodeId(node.getIndex(), node.getIdentifier()));
+			}
+
+			Variant value = null;
+			switch (node.getType()) {
+				case "int":
+//					value = new Variant(Integer.parseInt(node.getValue().toString()));
+					value = new Variant(Unsigned.ushort(node.getValue().toString()));
+					break;
+				case "boolean":
+					value = new Variant(Boolean.parseBoolean(node.getValue().toString()));
+					break;
+				case "short":
+					value = new Variant(Short.parseShort(node.getValue().toString()));
+					break;
+				case "float":
+					value = new Variant(Float.parseFloat(node.getValue().toString()));
+					break;
+				case "double":
+					value = new Variant(Double.parseDouble(node.getValue().toString()));
+					break;
+				default:
+					value = new Variant(node.getValue());
+			}
+			dataValues.add(new DataValue(value, null, null));
+		}
+
+		List<StatusCode> statusCodes = client.writeValues(nodeIds, dataValues).get();
+
+		List<Boolean> isGoods = statusCodes.stream().map(StatusCode::isGood).collect(Collectors.toList());
+
+		return "各节点写入状态：" + isGoods;
 	}
 
 	/**

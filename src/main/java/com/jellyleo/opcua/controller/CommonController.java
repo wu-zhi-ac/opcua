@@ -5,6 +5,7 @@
  */
 package com.jellyleo.opcua.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -108,6 +109,28 @@ public class CommonController {
 
 		try {
 			return clientHandler.write(node);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "fail";
+		}
+	}
+
+	@RequestMapping("/writes")
+	@ResponseBody
+	public String writes(HttpServletRequest request) {
+
+		List<NodeEntity> nodes = new ArrayList<>();
+		String[] ids = request.getParameter("id").split(",");
+		String[] values = request.getParameter("value").split(",");
+		Integer index = Integer.valueOf(request.getParameter("index"));
+		String type = request.getParameter("type");
+
+		for (int i = 0; i < ids.length; i++) {
+			nodes.add(new NodeEntity(index, ids[i], values[i], type));
+		}
+
+		try {
+			return clientHandler.writes(nodes);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return "fail";
