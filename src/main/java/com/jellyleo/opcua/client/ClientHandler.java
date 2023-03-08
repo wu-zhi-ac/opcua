@@ -229,24 +229,29 @@ public class ClientHandler {
 
 		Variant value = null;
 		switch (node.getType()) {
-		case "int":
-//			value = new Variant(Integer.parseInt(node.getValue().toString()));
-			value = new Variant(Unsigned.ushort(node.getValue().toString()));
-			break;
-		case "boolean":
-			value = new Variant(Boolean.parseBoolean(node.getValue().toString()));
-			break;
-		case "short":
-			value = new Variant(Short.parseShort(node.getValue().toString()));
-			break;
-		case "float":
-			value = new Variant(Float.parseFloat(node.getValue().toString()));
-			break;
-		case "double":
-			value = new Variant(Double.parseDouble(node.getValue().toString()));
-			break;
-		default:
-			value = new Variant(node.getValue());
+			case "word":
+				value = new Variant(Unsigned.ushort(node.getValue().toString()));
+				break;
+			case "dword":
+				value = new Variant(Unsigned.uint(node.getValue().toString()));
+				break;
+			case "int":
+				value = new Variant(Integer.parseInt(node.getValue().toString()));
+				break;
+			case "boolean":
+				value = new Variant(Boolean.parseBoolean(node.getValue().toString()));
+				break;
+			case "short":
+				value = new Variant(Short.parseShort(node.getValue().toString()));
+				break;
+			case "float":
+				value = new Variant(Float.parseFloat(node.getValue().toString()));
+				break;
+			case "double":
+				value = new Variant(Double.parseDouble(node.getValue().toString()));
+				break;
+			default:
+				value = new Variant(node.getValue());
 		}
 		DataValue dataValue = new DataValue(value, null, null);
 
@@ -273,9 +278,14 @@ public class ClientHandler {
 
 			Variant value = null;
 			switch (node.getType()) {
-				case "int":
-//					value = new Variant(Integer.parseInt(node.getValue().toString()));
+				case "word":
 					value = new Variant(Unsigned.ushort(node.getValue().toString()));
+					break;
+				case "dword":
+					value = new Variant(Unsigned.uint(node.getValue().toString()));
+					break;
+				case "int":
+					value = new Variant(Integer.parseInt(node.getValue().toString()));
 					break;
 				case "boolean":
 					value = new Variant(Boolean.parseBoolean(node.getValue().toString()));

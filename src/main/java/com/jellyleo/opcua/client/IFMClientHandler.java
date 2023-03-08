@@ -9,6 +9,7 @@ import com.alibaba.fastjson.JSON;
 import com.google.common.collect.ImmutableList;
 import com.jellyleo.opcua.entity.NodeEntity;
 import com.jellyleo.opcua.entity.VSEEntity;
+import com.jellyleo.opcua.util.DataUtils;
 import com.jellyleo.opcua.util.KafkaUtils;
 import com.jellyleo.opcua.util.RedisOperator;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -57,9 +59,14 @@ public class IFMClientHandler {
 	//测试时用map代替redis
 	private Map<String, VSEEntity> map = new HashMap<>();
 
-	private String broker = "127.0.0.1:9092";
+	@Value("${kafka.broker}")
+	private String broker;
 
-	private String topic = "ifm-test";
+	@Value("${kafka.topic}")
+	private String topic;
+
+	@Value("${opc.nodeId.namespaceIndex:3}")
+	private int namespaceIndex;
 
 	@Value("${ifm.objects:''}")
 	private String ifmObjectsStr;
@@ -98,7 +105,7 @@ public class IFMClientHandler {
 			String address = object[0];
 			int max = Integer.parseInt(object[1]);
 			String temp = "ifm.VSE." + address + ".Objects.Object";
-			log.info("identifier: {}", temp);
+//			log.info("identifier: {}", temp);
 			for (int i = 1; i <= max; i++) {
 				if (i < 10) {
 					identifiers.add(temp + "0" + i);
@@ -110,12 +117,13 @@ public class IFMClientHandler {
 
 		List<NodeId> nodeIds = new ArrayList<>();
 		for (String identifier : identifiers) {
-			NodeId nodeId = new NodeId(3, identifier);
+			NodeId nodeId = new NodeId(namespaceIndex, identifier);
 			// 不是订阅nodeId本身，而是其下的3个子节点
 			List<NodeId> ids = browseAndRead(nodeId);
+			// 目前只需要value值
 			nodeIds.add(ids.get(3)); // Value
-			nodeIds.add(ids.get(4)); // Maximum
-			nodeIds.add(ids.get(8)); // RotSpeed
+//			nodeIds.add(ids.get(4)); // Maximum
+//			nodeIds.add(ids.get(8)); // RotSpeed
 		}
 
 		subscribe(nodeIds);
@@ -169,7 +177,7 @@ public class IFMClientHandler {
 
 	private void onSubscriptionValue(UaMonitoredItem item, DataValue dataValue) {
 		NodeId nodeId = item.getReadValueId().getNodeId();
-		log.info("node={}, value={}", nodeId, dataValue.getValue().getValue());
+//		log.info("node={}, value={}", nodeId, dataValue.getValue().getValue());
 		String identifier = nodeId.getIdentifier().toString();
 		String[] split = identifier.split("\\.");
 		String name = split[split.length - 1];
@@ -188,38 +196,59 @@ public class IFMClientHandler {
 			return;
 		}
 
-		long current = Objects.requireNonNull(dataValue.getServerTime()).getJavaTime();
-		//上次更新时间距本次更新时间大于1s时认为一个完整更新已结束，发送到kafka
-		if (current - vseEntity.getTs() > 1000) {
-			// 发送到kafka
-			System.out.println(vseEntity);
-//			KafkaUtils.send(broker, topic, JSON.toJSONString(vseEntity));
-		}
+		vseEntity.setTs(Objects.requireNonNull(dataValue.getServerTime()).getJavaTime());
 		Double value;
 		if (dataValue.getValue().getValue() != null) {
 			value = ((Float) dataValue.getValue().getValue()).doubleValue();
 		} else {
 			value = null;
 		}
+		vseEntity.setValue(value);
 
-		vseEntity.setTs(current);
-		if (name.equalsIgnoreCase("value")) {
-			vseEntity.setValue(value);
-		} else if (name.equalsIgnoreCase("maximum")) {
-			vseEntity.setMaximum(value);
-		} else if (name.equalsIgnoreCase("warning")) {
-			vseEntity.setWarning(value);
-		} else if (name.equalsIgnoreCase("damage")) {
-			vseEntity.setDamage(value);
-		} else if (name.equalsIgnoreCase("rotSpeed")) {
-			vseEntity.setRotSpeed(value);
+		log.info("nodeId: {}", vseEntity.getNodeId());
+
+		// 数据格式转换
+		String jsonStr = DataUtils.dataConversion(vseEntity);
+		if (!StringUtils.isEmpty(jsonStr)) {
+			// 发送到kafka
+			KafkaUtils.send(broker, topic, jsonStr);
 		}
-		/*
-		ifm.VSE.192.168.0.33:3321.Objects.Object06.Value,ifm.VSE.192.168.0.33:3321.Objects.Object06.Maximum,ifm.VSE.192.168.0.33:3321.Objects.Object06.RotSpeed
-		 */
+
+//		long current = Objects.requireNonNull(dataValue.getServerTime()).getJavaTime();
+//		//上次更新时间距本次更新时间大于1s时认为一个完整更新已结束，发送到kafka
+//		if (current - vseEntity.getTs() > 1000) {
+////			System.out.println(vseEntity);
+//			log.info("nodeId: {}", vseEntity.getNodeId());
+//
+//			// 数据格式转换
+//			String jsonStr = DataUtils.dataConversion(vseEntity);
+//			if (!StringUtils.isEmpty(jsonStr)) {
+//				// 发送到kafka
+//				KafkaUtils.send(broker, topic, jsonStr);
+//			}
+//		}
+//		Double value;
+//		if (dataValue.getValue().getValue() != null) {
+//			value = ((Float) dataValue.getValue().getValue()).doubleValue();
+//		} else {
+//			value = null;
+//		}
+//
+//		vseEntity.setTs(current);
+//		if (name.equalsIgnoreCase("value")) {
+//			vseEntity.setValue(value);
+//		} else if (name.equalsIgnoreCase("maximum")) {
+//			vseEntity.setMaximum(value);
+//		} else if (name.equalsIgnoreCase("warning")) {
+//			vseEntity.setWarning(value);
+//		} else if (name.equalsIgnoreCase("damage")) {
+//			vseEntity.setDamage(value);
+//		} else if (name.equalsIgnoreCase("rotSpeed")) {
+//			vseEntity.setRotSpeed(value);
+//		}
 
 //		redisOperator.set(identifier, JSON.toJSONString(vseEntity));
-		map.put(identifier, vseEntity);
+//		map.put(identifier, vseEntity);
 	}
 
 	public boolean isNumeric(String str){
